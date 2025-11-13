@@ -1,0 +1,33 @@
+# Core FastAPI and server
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+
+# Data processing and scientific computing
+pandas==2.1.4
+numpy==1.26.3
+
+# Machine learning
+scikit-learn==1.4.0
+
+# Time series forecasting
+statsmodels==0.14.1
+
+# Model persistence
+joblib==1.3.2
+
+# Environment variables
+python-dotenv==1.0.0
+
+# HTTP requests
+requests==2.31.0
+
+# CORS middleware
+python-jose[cryptography]==3.3.0
+
+# Database (optional - for storing alerts/data)
+# sqlite3 is included in Python standard library
+
+# Development utilities
+pydantic==2.5.3
+pydantic-settings==2.1.0
