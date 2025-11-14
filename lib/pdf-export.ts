@@ -80,9 +80,9 @@ async function generateAIRecommendations(data: DashboardDataResponse): Promise<s
   try {
     const criticalTransformers = data.transformers
       .filter(t => t.bghi.status === 'Critical')
-      .map(t => `${t.transformer.ID} (${t.loadPercentage.toFixed(1)}% load, BGHI: ${t.bghi.score.toFixed(1)})`)
+      .map(t => `${t.transformer.ID} (${t.loadPercentage.toFixed(1)}% load, BGHI: ${t.bghi.bghiScore.toFixed(1)})`)
       .slice(0, 3);
-    
+
     const highLoadTransformers = data.transformers
       .filter(t => t.loadPercentage > 80)
       .length;
