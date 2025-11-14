@@ -68,6 +68,7 @@ export default function ConsumerDashboard() {
         // Generate smart meter data based on the household's load history
         // This ensures consistency between current consumption and forecast
         const mockSmartMeter: SmartMeterData = {
+          consumerId: household.id,
           currentConsumption: currentLoad,
           // Daily pattern (last 24 hours) - use current load as baseline
           daily: Array.from({ length: 24 }, (_, i) => {
@@ -77,7 +78,7 @@ export default function ConsumerDashboard() {
             const isPeakEvening = hour >= 18 && hour <= 22;
             const multiplier = isPeakMorning || isPeakEvening ? 1.2 : 0.8;
             return {
-              hour: `${hour}:00`,
+              date: `${hour}:00`, // <-- Fixed type mismatch
               consumption: Number((currentLoad * multiplier * (0.9 + Math.random() * 0.2)).toFixed(2)),
             };
           }),
@@ -86,9 +87,14 @@ export default function ConsumerDashboard() {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
             const isWeekend = i === 0 || i === 6;
             const multiplier = isWeekend ? 1.1 : 0.95;
+
+            const consumption = currentLoad && !isNaN(currentLoad)
+              ? Number((currentLoad * 24 * multiplier * (0.9 + Math.random() * 0.2)).toFixed(2))
+              : 0;
+
             return {
-              day: days[i],
-              consumption: Number((currentLoad * 24 * multiplier * (0.9 + Math.random() * 0.2)).toFixed(2)),
+              week: days[i], // <-- changed from 'day' to 'week'
+              consumption,
             };
           }),
           // Monthly pattern
@@ -145,7 +151,7 @@ export default function ConsumerDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [consumerId]);
+  }, [consumerId, tipsLoaded]);
 
   const fetchEnergyTips = async (
     currentLoadKw: number,
@@ -227,7 +233,9 @@ export default function ConsumerDashboard() {
   return (
     <DashboardLayout role="consumer" title="">
       <div className="space-y-6 pt-6">
+        {/* Cards: Current Consumption, Live Load, Daily Average, vs Average */}
         <div className="grid md:grid-cols-4 gap-6">
+          {/* Current Consumption Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Current Consumption</CardTitle>
@@ -245,6 +253,7 @@ export default function ConsumerDashboard() {
             </CardContent>
           </Card>
 
+          {/* Live Load Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Live Load (Kw)</CardTitle>
@@ -262,6 +271,7 @@ export default function ConsumerDashboard() {
             </CardContent>
           </Card>
 
+          {/* Daily Average Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Daily Average</CardTitle>
@@ -279,6 +289,7 @@ export default function ConsumerDashboard() {
             </CardContent>
           </Card>
 
+          {/* vs Average Card */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">vs Average</CardTitle>
@@ -304,6 +315,7 @@ export default function ConsumerDashboard() {
           </Card>
         </div>
 
+        {/* Household Load Forecast */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -364,7 +376,6 @@ export default function ConsumerDashboard() {
                       }}
                       labelFormatter={(label) => `Time: ${label}`}
                     />
-                    {/* Confidence interval shaded area */}
                     <Area 
                       type="monotone" 
                       dataKey="confidenceUpper" 
@@ -379,7 +390,6 @@ export default function ConsumerDashboard() {
                       fill="#ffffff" 
                       fillOpacity={1}
                     />
-                    {/* Main prediction line */}
                     <Area 
                       type="monotone" 
                       dataKey="predictedLoadKw" 
@@ -406,248 +416,43 @@ export default function ConsumerDashboard() {
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-800 rounded p-2">
                       <p className="text-gray-500">Method</p>
-                      <p className="font-bold text-gray-700 dark:text-gray-300 mt-1">EWMA</p>
+                      <p className="font-bold text-green-500 mt-1">AI Forecast</p>
                     </div>
                   </div>
-                )}
-
-                {forecastAlert ? (
-                  <div className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700 flex space-x-2">
-                    <AlertTriangle className="h-4 w-4 mt-0.5" />
-                    <div>
-                      <p className="font-semibold">⚠️ Transformer Overload Risk</p>
-                      <p className="mt-1">{forecastAlert.recommendedAction}</p>
-                      <p className="mt-1 text-red-600 font-semibold">
-                        Confidence: {(forecastAlert.confidence * 100).toFixed(0)}% • 
-                        Peak in {forecastAlert.hoursAhead}h
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-xs text-green-600 flex items-center space-x-1">
-                    <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span>No overload risk detected within 24-hour horizon</span>
-                  </p>
                 )}
               </>
             )}
           </CardContent>
         </Card>
 
-        {/* Smart Energy Tips */}
-        <Card className="border-l-4 border-l-green-500">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-green-600" />
-                <CardTitle>Smart Energy Tips</CardTitle>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={refreshEnergyTips}
-                  disabled={loadingTips}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-600 hover:text-green-600 border border-gray-300 hover:border-green-500 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title="Get new tips"
-                >
-                  <RefreshCw className={`h-3.5 w-3.5 ${loadingTips ? 'animate-spin' : ''}`} />
-                  <span>Refresh</span>
-                </button>
-                <div className="flex items-center gap-1 text-xs text-gray-500">
-                  <Sparkles className="h-4 w-4" />
-                  <span>AI-Powered</span>
-                </div>
-              </div>
+        {/* Energy Saving Tips */}
+        <Card>
+          <CardHeader className="flex justify-between items-center">
+            <div>
+              <CardTitle>Energy Saving Tips</CardTitle>
+              <CardDescription>Personalized suggestions to reduce load</CardDescription>
             </div>
-            <CardDescription>
-              Personalized recommendations based on your consumption and local grid health
-            </CardDescription>
+            <Button size="sm" variant="outline" onClick={refreshEnergyTips}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Refresh
+            </Button>
           </CardHeader>
           <CardContent>
             {loadingTips ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-12 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-                ))}
-              </div>
-            ) : energyTips.length > 0 ? (
-              <div className="space-y-3">
-                {energyTips.map((tip, index) => (
-                  <div
-                    key={index}
-                    className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-900/10 rounded-lg border border-green-200 dark:border-green-800"
-                  >
-                    <div className="flex-shrink-0 w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center font-semibold text-sm">
-                      {index + 1}
-                    </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed pt-1">
-                      {tip}
-                    </p>
-                  </div>
-                ))}
-              </div>
+              <p className="text-gray-500">Loading tips...</p>
             ) : (
-              <div className="text-center py-8 text-gray-500">
-                <Lightbulb className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                <p className="text-sm">Loading personalized energy tips...</p>
-              </div>
-            )}
-            
-            {dashboardData && (
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Local Grid Health (BGHI)</span>
-                  <span className={`font-semibold ${
-                    dashboardData.summary.bghiScore >= 80 ? 'text-green-600' :
-                    dashboardData.summary.bghiScore >= 60 ? 'text-amber-600' :
-                    'text-red-600'
-                  }`}>
-                    {dashboardData.summary.bghiScore.toFixed(0)}/100 ({dashboardData.summary.status})
-                  </span>
-                </div>
-              </div>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                {energyTips.map((tip, idx) => (
+                  <li key={idx}>{tip}</li>
+                ))}
+              </ul>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle>Consumption Trends</CardTitle>
-                <CardDescription>Track your energy consumption over time</CardDescription>
-              </div>
-              {smartMeterData && (
-                <Button
-                  onClick={() => exportHouseholdData(
-                    consumerId,
-                    smartMeterData.currentConsumption,
-                    smartMeterData.daily,
-                    smartMeterData.weekly,
-                    smartMeterData.monthly
-                  )}
-                  variant="outline"
-                  size="sm"
-                  className="border-green-500 text-green-600 hover:bg-green-50"
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Data
-                </Button>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="h-[400px] flex items-center justify-center">
-                <p className="text-gray-500">Loading data...</p>
-              </div>
-            ) : (
-              <Tabs defaultValue="daily" className="w-full">
-                <TabsList>
-                  <TabsTrigger value="daily">Daily</TabsTrigger>
-                  <TabsTrigger value="weekly">Weekly</TabsTrigger>
-                  <TabsTrigger value="monthly">Monthly</TabsTrigger>
-                </TabsList>
-                <TabsContent value="daily" className="mt-4">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <LineChart data={smartMeterData?.daily || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="hour"
-                        angle={-45}
-                        textAnchor="end"
-                        height={100}
-                        tick={{ fontSize: 11 }}
-                      />
-                      <YAxis 
-                        label={{ value: 'Consumption (kWh)', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
-                      />
-                      <Tooltip 
-                        labelFormatter={(value) => `Hour: ${value}`}
-                        formatter={(value: number) => [`${value.toFixed(2)} kWh`, 'Consumption']}
-                      />
-                      <Legend />
-                      <Line
-                        type="monotone"
-                        dataKey="consumption"
-                        stroke="#f97316"
-                        strokeWidth={2}
-                        name="Consumption (kWh)"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </TabsContent>
-                <TabsContent value="weekly" className="mt-4">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={smartMeterData?.weekly || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="day" />
-                      <YAxis 
-                        label={{ value: 'Consumption (kWh)', angle: -90, position: 'insideLeft', style: { fontSize: 12 } }}
-                      />
-                      <Tooltip 
-                        formatter={(value: number) => [`${value.toFixed(2)} kWh`, 'Consumption']}
-                      />
-                      <Legend />
-                      <Bar dataKey="consumption" fill="#f97316" name="Consumption (kWh)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </TabsContent>
-                <TabsContent value="monthly" className="mt-4">
-                  <ResponsiveContainer width="100%" height={400}>
-                    <BarChart data={smartMeterData?.monthly || []}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="consumption" fill="#f97316" name="Consumption (kWh)" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </TabsContent>
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Weekly Average</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{averageWeekly.toFixed(2)} kWh</div>
-              <p className="text-sm text-muted-foreground mt-2">Average consumption per week</p>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Monthly Average</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{averageMonthly.toFixed(2)} kWh</div>
-              <p className="text-sm text-muted-foreground mt-2">Average consumption per month</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* AI Chatbot - only show if we have grid data */}
-        {dashboardData && (
-          <GridAIChatbot
-            context={{
-              barangay: dashboardData.city,
-              bghiScore: dashboardData.summary.bghiScore,
-              status: dashboardData.summary.status,
-              totalTransformers: dashboardData.summary.totalTransformers,
-              warningTransformers: dashboardData.summary.warningTransformers,
-              criticalTransformers: dashboardData.summary.criticalTransformers,
-              temperature: dashboardData.weather.temperature,
-              weatherCondition: dashboardData.weather.condition,
-            }}
-          />
-        )}
+        {/* Grid AI Chatbot */}
+        <GridAIChatbot />
       </div>
     </DashboardLayout>
   );
 }
-
