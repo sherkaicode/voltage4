@@ -77,11 +77,13 @@ export default function ConsumerDashboard() {
             const isPeakMorning = hour >= 6 && hour <= 9;
             const isPeakEvening = hour >= 18 && hour <= 22;
             const multiplier = isPeakMorning || isPeakEvening ? 1.2 : 0.8;
+
             return {
-              date: `${hour}:00`, // <-- Fixed type mismatch
+              date: `${hour}:00`, // <-- change 'hour' to 'date'
               consumption: Number((currentLoad * multiplier * (0.9 + Math.random() * 0.2)).toFixed(2)),
             };
           }),
+
           // Weekly pattern
           weekly: Array.from({ length: 7 }, (_, i) => {
             const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
